@@ -1,1 +1,3 @@
 GIT_ARCHIVE_VERSION export-subst
+* text=auto
+*.tcl text eol=lf
