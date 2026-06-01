@@ -263,10 +263,28 @@ proc ::game::Load { selection {ply ""} } {
 
   set extraTags [sc_game tag get Extra]
   regexp {FlipB "([01])"\n} $extraTags -> flipB
-  if {![info exists flipB]} { set flipB -1 }
-  ::board::flipAuto .main.board $flipB
+  if {![info exists flipB]} { 
+    flipBoardForPlayerName 
+  } else {
+    ::board::flipAuto .main.board $flipB
+  }
+  
 
   ::notify::GameChanged 2
+}
+
+proc flipBoardForPlayerName {} {
+  set white [sc_game info white]
+  set black [sc_game info black]
+  set myName "Wayne_Stevebert"
+  
+  if {[string match $myName $black]} {
+    ::board::flipAuto .main.board 1
+  } elseif {[string match $myName $white]} {
+    ::board::flipAuto .main.board 0
+  } else {
+    ::board::flipAuto .main.board -1
+  }
 }
 
 
