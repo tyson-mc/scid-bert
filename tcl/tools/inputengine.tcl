@@ -536,8 +536,9 @@ namespace eval inputengine {
 
           logEngine "$line"
 
-          if {[catch {sc_move addSan $m}]} {
-             ::utils::sound::PlaySound "sound_alert"
+          if {[catch {addMoveUCI $m}]} {
+            tk_messageBox -message "your message here"
+             #::utils::sound::PlaySound "sound_alert"
              logEngine "  info Illegal move detected!"
              logEngine "  info Ignoring: $m"
              .inputengineconsole.bPiece configure -background red
@@ -547,10 +548,14 @@ namespace eval inputengine {
             .inputengineconsole.bPiece configure -background green
             .inputengineconsole.bMove  configure -background green -text $m
 
-             updateBoard -pgn -animate
+            # updateBoard -pgn -animate
              ::inputengine::sendToEngine "getposition"
              ::inputengine::sendToEngine "getclock"
           }
+        } \
+        "^takeback$" {
+          logEngine "< $line"
+          ::move::Back 1
         } \
         "info *" {
           logEngine "< $line"
@@ -608,7 +613,7 @@ namespace eval inputengine {
               set int [string range [sc_pos fen] 0 $space]
 
               if {$fen != $int} {
-                ::utils::sound::PlaySound "sound_alert"
+                #::utils::sound::PlaySound "sound_alert"
                 logEngine "  info Wrong Position! $int (scid) != $fen (external)"
               } else {
                 logEngine "  info Board and internal position match."
