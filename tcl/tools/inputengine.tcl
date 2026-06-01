@@ -412,7 +412,7 @@ namespace eval inputengine {
 
     # Configure the pipe and initiate the engine
     set pipe $::inputengine::InputEngine(pipe)
-    fconfigure $pipe -buffering full -blocking 0
+    fconfigure $pipe -buffering line -blocking 0
     # register the eventhandler
     fileevent  $pipe readable "::inputengine::readFromEngine"
 
