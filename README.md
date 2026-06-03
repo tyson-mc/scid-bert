@@ -36,7 +36,6 @@ The Chessnut board is accessed via the [EasyLink C SDK](https://github.com/Chess
 | `cl_set_readtime_callback(fn)` | Register handler for real-time FEN updates |
 | `cl_switch_upload_mode()` | Switch to file retrieval mode |
 | `cl_get_file_count()` | Number of stored game files |
-| `cl_get_file_and_keep()` | Read next game file without deleting it |
 | `cl_get_file_and_delete()` | Read and consume next game file |
 | `cl_led(leds[8])` | Set LED state for each square |
 | `cl_beep(frequencyHz, durationMs)` | Trigger a beep |
