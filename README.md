@@ -37,8 +37,7 @@ The Chessnut board is accessed via the [EasyLink C SDK](https://github.com/Chess
 | `cl_switch_upload_mode()` | Switch to file retrieval mode |
 | `cl_get_file_count()` | Number of stored game files |
 | `cl_get_file_and_delete()` | Read and consume next game file |
- `cl_get_file_and_keep()` | Read next game file without deleting it 
- (can't iterate without deleting current, see `easy_link_c.h`)|
+ `cl_get_file_and_keep()` | Read next game file without deleting it \n(can't iterate without deleting current, see `easy_link_c.h`)|
 | `cl_led(leds[8])` | Set LED state for each square |
 | `cl_beep(frequencyHz, durationMs)` | Trigger a beep |
 | `cl_get_battery()` | Battery level (0–100) |
