@@ -449,6 +449,12 @@ namespace eval ::notify {
     if {[winfo exists .bookTuningWin]} { ::book::refreshTuning }
     updateNoveltyWin
     ::updateTreeFilter
+    # sqidbert: let the board input engine react to externally-caused position
+    # changes (engine-opponent replies). Guarded so it is a no-op when the
+    # module isn't loaded or no board is connected.
+    if {[info procs ::inputengine::onPosChanged] ne ""} {
+      ::inputengine::onPosChanged
+    }
   }
 
   # To be called when the current database change or a new base is opened

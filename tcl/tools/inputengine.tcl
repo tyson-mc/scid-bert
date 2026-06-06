@@ -215,6 +215,14 @@ namespace eval inputengine {
   set InputEngine(log)      ""
   set InputEngine(logCount) 0
   set InputEngine(init)     0
+  # Set while WE apply a move to scid's game (a board move via the "move"
+  # command, or a player-completed engine move via "confirmmove"). The
+  # onPosChanged hook reads it to ignore the resulting ::notify::PosChanged --
+  # otherwise we would re-announce our own move to the board (echo loop).
+  set InputEngine(applyingOwnMove) 0
+  # The UCI of the last engine move we announced via "enginemove", so we do not
+  # announce the same position twice if PosChanged fires more than once.
+  set InputEngine(lastAnnounced)   ""
   set connectimg            tb_eng_ok
   set MovingPieceImg        $::board::letterToPiece(.)80
   set MoveText              "     "
@@ -505,6 +513,70 @@ namespace eval inputengine {
     ::inputengine::sendToEngine "getclock"
   }
 
+  #----------------------------------------------------------------------
+  # engineColour()
+  #     Which colour ("white"/"black") the engine plays in the CURRENTLY
+  #     active play-vs-engine mode, or "" if none. Isolates the per-mode
+  #     knowledge: sergame names it directly; tacgame derives it (the engine
+  #     plays whatever side the player does not). Extend here for new modes.
+  #----------------------------------------------------------------------
+  proc engineColour {} {
+    if {[info exists ::sergame::engineColor] && $::sergame::engineColor ne ""} {
+      return $::sergame::engineColor
+    }
+    # tacgame: engine plays the side the player isn't.
+    if {[namespace exists ::tacgame] \
+        && [info procs ::tacgame::getPhalanxColor] ne ""} {
+      if {![catch {::tacgame::getPhalanxColor} col]} {
+        return $col
+      }
+    }
+    return ""
+  }
+
+  #----------------------------------------------------------------------
+  # onPosChanged()
+  #     Subscribed via game.tcl privPosChanged. Fires on EVERY position
+  #     change. We act only when an engine OPPONENT just moved, so that the
+  #     physical board can show that move for the player to make.
+  #
+  #     Three guards, in order:
+  #       1. applyingOwnMove -- we caused this change (a board move /
+  #          confirmmove); ignore the echo.
+  #       2. no ::playMode    -- not a bot game (free analysis / navigation);
+  #          do nothing, so variation exploration stays unrestricted.
+  #       3. side that just   -- only the ENGINE's move is announced to the
+  #          moved != engine     board. (After a move sc_pos side is the side
+  #          colour              now TO move, so the side that just moved is
+  #                              the opposite.)
+  #----------------------------------------------------------------------
+  proc onPosChanged {} {
+    global ::inputengine::InputEngine
+
+    # Only relevant while the board driver is connected.
+    if {$InputEngine(pipe) eq ""} { return }
+
+    # 1. Did we cause this change?
+    if {$InputEngine(applyingOwnMove)} { return }
+
+    # 2. Is a play-vs-engine mode active? If not, this is analysis/navigation.
+    if {![info exists ::playMode]} { return }
+
+    # 3. Was it the engine's side that just moved?
+    set engCol [::inputengine::engineColour]
+    if {$engCol eq ""} { return }
+    # sc_pos side = side NOW to move; the mover was the opposite side.
+    set mover [expr {[sc_pos side] eq "white" ? "black" : "white"}]
+    if {$mover ne $engCol} { return }
+
+    # The engine's move, in UCI -- exactly what the board protocol wants.
+    set uci [sc_game info previousMoveUCI]
+    if {$uci eq "" || $uci eq $InputEngine(lastAnnounced)} { return }
+
+    set InputEngine(lastAnnounced) $uci
+    ::inputengine::sendToEngine "enginemove $uci"
+  }
+
   proc strreverse {str} {
      set res {}
      set i [string length $str]
@@ -536,7 +608,13 @@ namespace eval inputengine {
 
           logEngine "$line"
 
-          if {[catch {addMoveUCI $m}]} {
+          # Guard: applying our own board move triggers ::notify::PosChanged;
+          # onPosChanged must ignore that (we caused it).
+          set ::inputengine::InputEngine(applyingOwnMove) 1
+          set failed [catch {addMoveUCI $m}]
+          set ::inputengine::InputEngine(applyingOwnMove) 0
+
+          if {$failed} {
             tk_messageBox -message "your message here"
              #::utils::sound::PlaySound "sound_alert"
              logEngine "  info Illegal move detected!"
@@ -552,6 +630,19 @@ namespace eval inputengine {
              ::inputengine::sendToEngine "getposition"
              ::inputengine::sendToEngine "getclock"
           }
+        } \
+        "^confirmmove *" {
+          # The player has physically completed an engine move that scid's
+          # play mode ALREADY applied to the game (we announced it via
+          # "enginemove"). So we must NOT addMoveUCI again -- the game is
+          # already at this position. We only acknowledge it: clear the
+          # announce latch and verify board==game.
+          set m [string range $line 12 end]
+          logEngine "< $line"
+          set ::inputengine::InputEngine(lastAnnounced) ""
+          .inputengineconsole.bPiece configure -background green
+          .inputengineconsole.bMove  configure -background green -text $m
+          ::inputengine::sendToEngine "getposition"
         } \
         "^takeback$" {
           logEngine "< $line"
