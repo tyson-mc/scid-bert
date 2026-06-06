@@ -559,8 +559,14 @@ namespace eval inputengine {
     # 1. Did we cause this change?
     if {$InputEngine(applyingOwnMove)} { return }
 
-    # 2. Is a play-vs-engine mode active? If not, this is analysis/navigation.
-    if {![info exists ::playMode]} { return }
+    # 2. Is a play-vs-engine mode active?
+    #    NO  -> analysis/navigation: push the booked continuations from this
+    #           position so the board can hint the mainline (and variations).
+    #    YES -> engine game: fall through to the engine-move announce below.
+    if {![info exists ::playMode]} {
+      ::inputengine::sendHints
+      return
+    }
 
     # 3. Was it the engine's side that just moved?
     set engCol [::inputengine::engineColour]
@@ -575,6 +581,26 @@ namespace eval inputengine {
 
     set InputEngine(lastAnnounced) $uci
     ::inputengine::sendToEngine "enginemove $uci"
+  }
+
+  #----------------------------------------------------------------------
+  # sendHints()
+  #     Push the booked continuations from the current position as
+  #     "hints <uci> <uci> ...", mainline first then variations. Used in
+  #     analysis so the board can light the next mainline move (and, when a
+  #     piece is lifted, that piece's booked targets). At the end of a line
+  #     there are no continuations -> "hints" with no moves clears the board.
+  #
+  #     Mirrors ::move::Follow / ::move::showVarArrows, which build the same
+  #     list from the same source, so board and GUI agree on what is "booked".
+  #----------------------------------------------------------------------
+  proc sendHints {} {
+    set moves [sc_var list UCI]
+    set main  [sc_game info nextMoveUCI]
+    if {$main ne ""} {
+      set moves [linsert $moves 0 $main]
+    }
+    ::inputengine::sendToEngine "hints $moves"
   }
 
   proc strreverse {str} {
