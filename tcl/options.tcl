@@ -599,6 +599,16 @@ if {[file exists $optionsFile] && [catch {safeLoadConfig $optionsFile}]} {
   tk_messageBox -message $::errorInfo
 }
 
+# Layered settings: shared.tcl (same on every machine) then device.tcl
+# (per-machine overrides) win over options.dat. Missing files are skipped.
+foreach layerFile {shared.tcl device.tcl} {
+  set layerFile [file join $::scidLayerDir $layerFile]
+  if {[file exists $layerFile] && [catch {safeLoadConfig $layerFile}]} {
+    tk_messageBox -message $::errorInfo
+  }
+}
+unset layerFile
+
 # Now, if the options file was written by Scid 3.5 or older, it has a lot of
 # yucky variable names in the global namespace. So convert them to the new
 # namespace variables:

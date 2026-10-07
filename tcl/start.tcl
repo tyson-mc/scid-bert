@@ -97,6 +97,7 @@ if {[tk windowingsystem] == "aqua"} {
 
 proc InitDirs {} {
   global scidExeDir scidUserDir scidConfigDir scidDataDir scidLogDir scidShareDir scidImgDir scidTclDir
+  global scidLayerDir
   global scidBooksDir scidBasesDir ecoFile
 
   # scidExeDir: contains the directory of the Scid executable program.
@@ -126,6 +127,14 @@ proc InitDirs {} {
   set scidConfigDir [file nativename [file join $scidUserDir "config"]]
   set scidDataDir [file nativename [file join $scidUserDir "data"]]
   set scidLogDir [file nativename [file join $scidUserDir "log"]]
+
+  # scidLayerDir: optional settings layered over options.dat and engines.dat
+  # (shared.tcl, device.tcl, engines.tcl), e.g. ~/.config/scid.
+  if {[info exists ::env(XDG_CONFIG_HOME)] && $::env(XDG_CONFIG_HOME) ne ""} {
+    set scidLayerDir [file join $::env(XDG_CONFIG_HOME) scid]
+  } else {
+    set scidLayerDir [file join $::env(HOME) .config scid]
+  }
 
   # scidShareDir, scidImgDir, scidTclDir, scidBooksDir, scidBasesDir, ecoFile:
   # Location of Scid resources
@@ -343,6 +352,11 @@ proc safeLoadConfig {filename {encoding ""} {extraAliases {}}} {
 
   # Redirect "set" so that assignments reach the main interpreter's global scope.
   interp alias $_interp set {} ::safeConfigSet
+
+  # Let config files use $env(HOME)-relative paths; nothing else from env.
+  if {[info exists ::env(HOME)]} {
+    $_interp eval [list array set ::env [list HOME $::env(HOME)]]
+  }
 
   # Expose any caller-requested additional commands (e.g. "engine" for engines.dat).
   foreach {_alias _target} $extraAliases {

@@ -216,7 +216,19 @@ proc engine {arglist} {
 #   - Sources the engines configuration file (may call `engine` repeatedly).
 ################################################################################
 proc ::enginelist::read {} {
+    global engines
     catch {safeLoadConfig [scidConfigFile engines] "" {engine engine}}
+    # Engines in the layered engines.tcl come first and replace same-named
+    # entries from engines.dat. A missing file leaves the list unchanged.
+    set layerFile [file join $::scidLayerDir engines.tcl]
+    if {![file exists $layerFile]} { return }
+    set localEngines $engines(list)
+    set engines(list) {}
+    catch {safeLoadConfig $layerFile "" {engine engine}}
+    set sharedNames [lmap e $engines(list) {lindex $e 0}]
+    foreach e $localEngines {
+        if {[lindex $e 0] ni $sharedNames} { lappend engines(list) $e }
+    }
 }
 
 ################################################################################
